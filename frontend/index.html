@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FixFlow · Maintenance Escrow</title>
+  <meta name="description" content="FixFlow - blockchain-based apartment maintenance requests with escrowed payments." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M9 22l5-5 3 3 6-8' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <svg class="brand-logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M9 22l5-5 3 3 6-8"/></svg>
+        <div>
+          <span class="brand-name">FixFlow</span>
+          <span class="brand-tag">Maintenance &amp; Escrow</span>
+        </div>
+      </div>
+
+      <nav class="tabs" aria-label="Main sections">
+        <button class="tab is-active" data-view="dashboard" aria-current="page">Dashboard</button>
+        <button class="tab" data-view="requests">Requests</button>
+        <button class="tab" data-view="create">New request</button>
+        <button class="tab" data-view="admin" id="adminTab">Admin</button>
+      </nav>
+
+      <div class="wallet">
+        <span id="networkPill" class="pill pill-muted" title="Network">No network</span>
+        <span id="accountPill" class="pill pill-muted mono" hidden></span>
+        <button id="connectBtn" class="btn btn-primary">Connect MetaMask</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="banners" class="banners" aria-live="polite"></div>
+
+  <main id="main" class="container">
+    <!-- ================= DASHBOARD ================= -->
+    <section class="view is-active" data-view="dashboard" aria-labelledby="dashTitle">
+      <div class="view-head">
+        <div>
+          <h1 id="dashTitle">Dashboard</h1>
+          <p class="muted">Live figures read directly from the FixFlow smart contract.</p>
+        </div>
+        <button class="btn btn-ghost" id="refreshBtn" title="Reload contract data">↻ Refresh</button>
+      </div>
+
+      <div class="stats">
+        <article class="stat">
+          <span class="stat-label">Total requests</span>
+          <strong class="stat-value" id="statTotal">–</strong>
+        </article>
+        <article class="stat">
+          <span class="stat-label">Open requests</span>
+          <strong class="stat-value" id="statOpen">–</strong>
+          <span class="stat-sub">Open · accepted · awaiting review · disputed</span>
+        </article>
+        <article class="stat">
+          <span class="stat-label">Completed requests</span>
+          <strong class="stat-value" id="statDone">–</strong>
+          <span class="stat-sub">Paid out or resolved</span>
+        </article>
+        <article class="stat stat-accent">
+          <span class="stat-label">Outstanding escrow</span>
+          <strong class="stat-value" id="statEscrow">–</strong>
+          <span class="stat-sub" id="statPendingAll"></span>
+        </article>
+      </div>
+
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-head">
+            <h2>Recent activity</h2>
+            <span class="muted small">From contract events</span>
+          </div>
+          <ol id="activityList" class="activity"><li class="empty">No activity yet.</li></ol>
+        </article>
+
+        <div class="stack">
+          <article class="card">
+            <div class="card-head"><h2>Your account</h2></div>
+            <dl class="kv">
+              <dt>Address</dt><dd id="meAddress" class="mono">Not connected</dd>
+              <dt>Roles</dt><dd id="meRoles">–</dd>
+              <dt>Withdrawable balance</dt><dd><strong id="meBalance">–</strong></dd>
+            </dl>
+            <button id="withdrawBtn" class="btn btn-success btn-block" hidden>Withdraw funds</button>
+            <p class="muted small">Settlements are credited here first; withdraw to move ETH into your wallet (pull-payment pattern).</p>
+          </article>
+
+          <article class="card">
+            <div class="card-head"><h2>Contract</h2></div>
+            <dl class="kv">
+              <dt>Address</dt><dd id="cAddress" class="mono">–</dd>
+              <dt>Admin</dt><dd id="cAdmin" class="mono">–</dd>
+              <dt>Review period</dt><dd id="cReview">–</dd>
+              <dt>Dispute timeout</dt><dd id="cDispute">–</dd>
+              <dt>Pending withdrawals</dt><dd id="cPending">–</dd>
+              <dt>Contract balance</dt><dd id="cBalance">–</dd>
+            </dl>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= REQUESTS ================= -->
+    <section class="view" data-view="requests" aria-labelledby="reqTitle">
+      <div class="view-head">
+        <div>
+          <h1 id="reqTitle">Maintenance requests</h1>
+          <p class="muted">Select a request to see its details, history and the actions that apply to you.</p>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="chips" role="group" aria-label="Filter requests">
+          <button class="chip is-active" data-filter="all">All</button>
+          <button class="chip" data-filter="mine">My requests</button>
+          <button class="chip" data-filter="assigned">Assigned to me</button>
+          <button class="chip" data-filter="active">Active</button>
+          <button class="chip" data-filter="disputed">Disputed</button>
+          <button class="chip" data-filter="action">Needs my action</button>
+        </div>
+        <label class="search">
+          <span class="sr-only">Search requests</span>
+          <input id="searchInput" type="search" placeholder="Search ID, text or address" />
+        </label>
+      </div>
+
+      <div class="table-wrap card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Description</th>
+              <th scope="col">Tenant</th>
+              <th scope="col">Technician</th>
+              <th scope="col" class="num">Escrow</th>
+              <th scope="col">Deadline</th>
+              <th scope="col">Status</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="requestRows">
+            <tr><td colspan="8" class="empty">No requests loaded.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= CREATE ================= -->
+    <section class="view" data-view="create" aria-labelledby="createTitle">
+      <div class="view-head">
+        <div>
+          <h1 id="createTitle">New maintenance request</h1>
+          <p class="muted">The amount you enter is deposited into escrow when the transaction is confirmed.</p>
+        </div>
+      </div>
+
+      <div class="grid-2 grid-create">
+        <form id="createForm" class="card form" novalidate>
+          <div class="field">
+            <label for="fId">Request ID</label>
+            <input id="fId" name="id" type="number" min="1" step="1" required />
+            <small class="hint">Must be unique. Pre-filled with the next free ID.</small>
+          </div>
+          <div class="field">
+            <label for="fDesc">Repair description</label>
+            <textarea id="fDesc" name="description" rows="3" maxlength="280" required placeholder="e.g. Kitchen tap leaking under the sink, unit 4B"></textarea>
+            <small class="hint"><span id="descCount">0</span>/280 · stored publicly on-chain, avoid personal information.</small>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="fAmount">Amount (ETH)</label>
+              <input id="fAmount" name="amount" type="text" inputmode="decimal" required placeholder="0.5" />
+            </div>
+            <div class="field">
+              <label for="fDeadline">Completion deadline</label>
+              <input id="fDeadline" name="deadline" type="datetime-local" required />
+            </div>
+          </div>
+          <div class="field">
+            <label for="fTech">Assigned technician</label>
+            <input id="fTech" name="technician" type="text" list="techList" class="mono" required placeholder="0x…" autocomplete="off" />
+            <datalist id="techList"></datalist>
+            <small class="hint">Must be authorized by the admin. Known technicians appear as suggestions.</small>
+          </div>
+          <div id="formErrors" class="form-errors" role="alert" hidden></div>
+          <button type="submit" class="btn btn-primary btn-block" id="createBtn">Create &amp; fund request</button>
+        </form>
+
+        <aside class="card card-soft">
+          <h2>How escrow works</h2>
+          <ol class="steps">
+            <li><strong>Fund</strong> - you deposit exactly the agreed amount.</li>
+            <li><strong>Accept</strong> - the assigned technician accepts before the deadline (or declines → full refund).</li>
+            <li><strong>Complete</strong> - the technician marks the job done before the deadline.</li>
+            <li><strong>Review</strong> - you approve (payment released) or dispute within the review period.</li>
+            <li><strong>Arbitrate</strong> - an arbitrator chooses: pay technician, refund tenant, or 50/50 split.</li>
+          </ol>
+          <h3>Safety nets</h3>
+          <ul class="bullets">
+            <li>Cancel any time before acceptance → full refund.</li>
+            <li>Deadline missed → you can reclaim the full deposit.</li>
+            <li>You stay silent after completion → technician can claim after the review period.</li>
+            <li>No arbitrator acts in time → either party can apply the 50/50 default split.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ================= ADMIN ================= -->
+    <section class="view" data-view="admin" aria-labelledby="adminTitle">
+      <div class="view-head">
+        <div>
+          <h1 id="adminTitle">Role management</h1>
+          <p class="muted" id="adminNote">Only the contract administrator can change roles. The contract enforces this independently of the UI.</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-head"><h2>Technicians</h2></div>
+          <form class="inline-form" data-role="technician">
+            <label class="sr-only" for="techAddr">Technician address</label>
+            <input id="techAddr" type="text" class="mono" placeholder="0x… address" required />
+            <button type="submit" class="btn btn-primary" data-op="authorize">Authorize</button>
+            <button type="button" class="btn btn-ghost" data-op="revoke">Revoke</button>
+          </form>
+          <ul id="techListView" class="addr-list"><li class="empty">None yet.</li></ul>
+        </article>
+        <article class="card">
+          <div class="card-head"><h2>Arbitrators</h2></div>
+          <form class="inline-form" data-role="arbitrator">
+            <label class="sr-only" for="arbAddr">Arbitrator address</label>
+            <input id="arbAddr" type="text" class="mono" placeholder="0x… address" required />
+            <button type="submit" class="btn btn-primary" data-op="authorize">Authorize</button>
+            <button type="button" class="btn btn-ghost" data-op="revoke">Revoke</button>
+          </form>
+          <ul id="arbListView" class="addr-list"><li class="empty">None yet.</li></ul>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer container">
+    <label class="toggle" title="Demo option: submit the transaction with a fixed gas limit so a revert happens on-chain instead of during MetaMask's pre-flight estimate.">
+      <input type="checkbox" id="skipPreflight" />
+      <span>Demo mode: send transactions without pre-flight check (shows on-chain reverts)</span>
+    </label>
+    <span class="muted small">Ethers.js <span id="ethersVersion"></span> · Data source: <span id="dataSource">–</span></span>
+  </footer>
+
+  <!-- Request detail dialog -->
+  <dialog id="requestDialog" class="dialog" aria-labelledby="dlgTitle">
+    <div class="dialog-head">
+      <h2 id="dlgTitle">Request</h2>
+      <button class="icon-btn" id="dlgClose" aria-label="Close">✕</button>
+    </div>
+    <div id="dlgBody" class="dialog-body"></div>
+  </dialog>
+
+  <div id="toasts" class="toasts" popover="manual" aria-live="assertive" aria-atomic="false"></div>
+
+  <script src="vendor/ethers-6.13.4.umd.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

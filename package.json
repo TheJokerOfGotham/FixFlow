@@ -1,0 +1,23 @@
+{
+  "name": "fixflow",
+  "version": "1.0.0",
+  "description": "FixFlow - blockchain maintenance requests with escrow",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "compile": "node scripts/compile.js",
+    "test": "node --test tests/automated/*.test.js",
+    "ganache": "ganache --port 7545 --chain.chainId 1337 --wallet.deterministic --wallet.totalAccounts 6 --chain.hardfork merge",
+    "serve": "node scripts/serve.js",
+    "sync-abi": "node scripts/sync-abi.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "ethers": "6.13.4",
+    "ganache": "7.9.2",
+    "solc": "0.8.20"
+  },
+  "private": true
+}
